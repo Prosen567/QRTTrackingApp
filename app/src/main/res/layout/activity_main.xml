@@ -499,20 +499,20 @@
     <EditText
         android:id="@+id/editTextTextPersonName"
         android:layout_width="match_parent"
-        android:layout_marginHorizontal="40dp"
         android:layout_height="wrap_content"
         android:layout_below="@+id/headLayout"
         android:layout_centerHorizontal="true"
+        android:layout_marginHorizontal="40dp"
         android:layout_marginStart="10dp"
         android:layout_marginTop="10dp"
         android:layout_marginEnd="10dp"
         android:layout_marginBottom="10dp"
+        android:background="@drawable/edittextcustom"
         android:ems="10"
         android:hint="Route"
-        android:drawableLeft=""
-        android:padding="5dp"
-        android:background="@drawable/edittextcustom"
         android:inputType="textPersonName"
-        android:text="Name" />
+        android:minHeight="48dp"
+        android:padding="5dp"
+        />
 
 </RelativeLayout>

@@ -15,7 +15,7 @@ android {
         minSdkVersion 19
         targetSdkVersion 34
         versionCode 10
-        versionName "9.0"
+        versionName "9.5"
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
         signingConfig signingConfigs.config
     }
@@ -48,6 +48,7 @@ dependencies {
     androidTestImplementation 'androidx.test.ext:junit:1.1.1'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.1.0'
     implementation 'com.google.guava:guava:28.0-android'
+    implementation 'com.google.code.gson:gson:2.8.2'
 }
 
 apply plugin: 'com.google.gms.google-services'

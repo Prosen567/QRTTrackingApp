@@ -18,7 +18,6 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.CountDownTimer;
 
-import androidx.ads.identifier.AdvertisingIdInfo;
 import androidx.annotation.NonNull;
 
 import com.google.android.gms.ads.identifier.AdvertisingIdClient;
@@ -26,7 +25,6 @@ import com.google.android.gms.common.GooglePlayServicesNotAvailableException;
 import com.google.android.gms.common.GooglePlayServicesRepairableException;
 import com.google.android.material.textfield.TextInputEditText;
 
-import androidx.annotation.Nullable;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.appcompat.app.AlertDialog;
@@ -38,6 +36,8 @@ import android.widget.Button;
 import android.widget.Toast;
 
 import com.google.firebase.iid.FirebaseInstanceId;
+
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -49,7 +49,6 @@ import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -400,11 +399,10 @@ public class UserLogin extends AppCompatActivity {
                             //HelperSharedPreferences.putSharedPreferencesString(UserLogin.this, "mobileno", userDetails.get(5));
 
                             AlertDialog(otpText, "", UserLogin.this);
-                            startActivity(new Intent(getBaseContext(), MainActivity.class));
-                            if (dialog.isShowing()){
-                                dialog.dismiss();
-                            }
-                            UserLogin.this.finish();
+
+                            loadpartslocationData(phoneNumber);
+
+
 
                         }else {
                             AlertDialog(otpText, "", UserLogin.this);
@@ -417,6 +415,67 @@ public class UserLogin extends AppCompatActivity {
             }
         });
     }
+
+
+    private void loadpartslocationData(String phoneNumber) {
+
+        JSONObject jsonObject = new JSONObject();
+        try {
+
+            jsonObject.put("version", BuildConfig.VERSION_NAME);
+            jsonObject.put("mobileserial",phoneNumber);
+            jsonObject.put("imei", HelperSharedPreferences.getSharedPreferencesString(this, "IMEI", ""));
+
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+
+        Log.d("jsonobject==>",jsonObject.toString());
+
+        NetworkCall networkCall = new NetworkCall();
+        networkCall.postJsonResponse("http://wbceo.in/qrttrackapi/get_parts_location", jsonObject, this,"");
+        networkCall.setOnOnNetworkCallListener(new NetworkCall.OnNetworkCallListener() {
+            @Override
+            public void onCompleted(boolean status, JSONObject jsonObject) {
+
+                if (status) {
+                    System.out.println("UserLogin.   OTP: "+jsonObject);
+                    try {
+                      /*  HelperSharedPreferences.putSharedPreferencesString(UserLogin.this, "sectorname", userDetails.get(0));
+
+                        System.out.println("UserLogin.onClick: " + HelperSharedPreferences.getSharedPreferencesString(UserLogin.this, "sectorname","" ));
+                        HelperSharedPreferences.putSharedPreferencesString(UserLogin.this, "distno", userDetails.get(1));
+                        HelperSharedPreferences.putSharedPreferencesString(UserLogin.this, "acno", userDetails.get(3));
+                        HelperSharedPreferences.putSharedPreferencesString(UserLogin.this, "secno", userDetails.get(4));
+                        HelperSharedPreferences.putSharedPreferencesString(UserLogin.this, "mobileno", userDetails.get(5));
+                        startActivity(new Intent(getBaseContext(), MainActivity.class));
+                        finish();*/
+                        JSONObject data = jsonObject.getJSONObject("data");
+                        JSONArray  locationarray = data.optJSONArray("part_info");
+
+                        HelperSharedPreferences.putSharedPreferencesString(UserLogin.this,"part_info",locationarray.toString());
+
+                        startActivity(new Intent(getBaseContext(), MainActivity.class));
+                        if (dialog.isShowing()){
+                            dialog.dismiss();
+                        }
+                        UserLogin.this.finish();
+
+
+                        Log.d("locationarray",locationarray.toString());
+
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+
+            }
+        });
+
+
+
+    }
+
 
     private String GenerateOTP(int size) {
         StringBuilder generatedToken = new StringBuilder();

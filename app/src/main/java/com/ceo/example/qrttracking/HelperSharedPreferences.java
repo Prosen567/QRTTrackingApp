@@ -4,10 +4,18 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.preference.PreferenceManager;
 
+import com.ceo.example.qrttracking.data.PartInfo;
+import com.google.common.reflect.TypeToken;
+import com.google.gson.Gson;
+
+import java.lang.reflect.Type;
+import java.util.ArrayList;
+
 public class HelperSharedPreferences {
     public static class SharedPreferencesKeys {
         public static final String key1 = "key1";
         public static final String key2 = "key2";
+        public static final String key3 = "key2";
     }
 
     public static void putSharedPreferencesInt(Context context, String key, int value) {
@@ -76,4 +84,30 @@ public class HelperSharedPreferences {
         editor.remove(key);
         editor.apply();
     }
+
+
+    // Save JSON array to SharedPreferences
+
+    public void saveJsonArray(Context context,String key,ArrayList<PartInfo> jsonArray) {
+        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(context);
+        Gson gson = new Gson();
+        String jsonArrayString = gson.toJson(jsonArray);
+        preferences.edit().putString(key, jsonArrayString).apply();
+    }
+
+    // Retrieve JSON array from SharedPreferences
+    public ArrayList<PartInfo> getJsonArray(Context context,String key) {
+        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(context);
+        Gson gson = new Gson();
+        String jsonArrayString = preferences.getString(key, null);
+        Type type = new TypeToken<ArrayList<PartInfo>>(){}.getType();
+        return gson.fromJson(jsonArrayString, type);
+
+
+    }
+
+
+
+
+
 }
