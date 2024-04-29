@@ -15,6 +15,7 @@ import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.content.res.Resources;
+import android.graphics.Color;
 import android.location.Criteria;
 import android.location.Location;
 import android.location.LocationManager;
@@ -26,15 +27,28 @@ import android.os.Build;
 import android.provider.Settings;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+
+import com.ceo.example.qrttracking.Interface.OnItemClickListener;
+import com.ceo.example.qrttracking.adapter.SearchAdapter;
+import com.ceo.example.qrttracking.data.PartInfo;
+import com.ceo.example.qrttracking.mapdirectiondata.DirectionResponses;
+import com.google.android.gms.maps.model.Polyline;
+import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.android.material.snackbar.Snackbar;
 import androidx.core.app.ActivityCompat;
 import androidx.fragment.app.FragmentActivity;
 import androidx.core.content.ContextCompat;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import androidx.appcompat.app.AlertDialog;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+
 import android.os.Bundle;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.util.Log;
 import android.view.LayoutInflater;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
@@ -43,6 +57,7 @@ import android.view.animation.Animation;
 import android.view.animation.LinearInterpolator;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -84,6 +99,9 @@ import com.google.android.gms.maps.model.MapStyleOptions;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.common.reflect.TypeToken;
+import com.google.gson.Gson;
+import com.google.maps.android.PolyUtil;
 import com.shockwave.pdfium.PdfDocument;
 
 import org.json.JSONException;
@@ -94,10 +112,12 @@ import org.ksoap2.serialization.SoapPrimitive;
 import org.ksoap2.serialization.SoapSerializationEnvelope;
 import org.ksoap2.transport.HttpTransportSE;
 
+import java.lang.reflect.Type;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.Hashtable;
 import java.util.List;
@@ -108,6 +128,13 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Retrofit;
+import retrofit2.converter.gson.GsonConverterFactory;
+import retrofit2.http.GET;
+import retrofit2.http.Query;
 
 public class MainActivity extends FragmentActivity implements View.OnClickListener, GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, LocationListener, OnMapReadyCallback, OnPageChangeListener, OnLoadCompleteListener {
     private static final long MAX_WAIT_TIME = 5000;
@@ -132,6 +159,11 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
     PDFView pdfView;
     Integer pageNumber = 0;
     String pdfFileName;
+    EditText et_searchlocation;
+    RecyclerView rc_locationlist;
+    private ArrayList<PartInfo> dataList;
+    private SearchAdapter searchAdapter;
+    int lastpos =-1;
 
     public static MainActivity getInstance() {
         return new MainActivity();
@@ -160,6 +192,8 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
         tvsectorId = findViewById(R.id.tvsectorId);
         tvSectorRole = findViewById(R.id.tvSectorRole);
         tvVersion = findViewById(R.id.tvVersion);
+        et_searchlocation = findViewById(R.id.et_search);
+        rc_locationlist = findViewById(R.id.rc_locationlist);
         /*if (!HelperSharedPreferences.getSharedPreferencesString(MainActivity.this, "sectorname", "").equals("")) {
             tvSecName.setText(HelperSharedPreferences.getSharedPreferencesString(MainActivity.this, "sectorname", ""));
         }*/
@@ -259,6 +293,156 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
         });
         animator.start();*/
 
+
+        String jsonString = HelperSharedPreferences.getSharedPreferencesString(MainActivity.this,"part_info","");
+
+
+//        JSONArray jsonArray= null;
+//
+//        try {
+//            jsonArray = new JSONArray(jsonString);
+//        } catch (JSONException e) {
+//            e.printStackTrace();
+//        }
+
+        Gson gson = new Gson();
+
+        Type type = new TypeToken<ArrayList<PartInfo>>(){}.getType();
+
+        dataList = gson.fromJson(jsonString, type);
+
+        Log.d("dataList", dataList.toString());
+
+        searchAdapter = new SearchAdapter(MainActivity.this,dataList);
+
+        rc_locationlist.setLayoutManager(new LinearLayoutManager(this));
+
+       searchAdapter.setOnItemClickListener(new OnItemClickListener() {
+
+
+           @Override
+           public void onItemClick(int position) {
+
+               rc_locationlist.setVisibility(View.GONE);
+
+               String destinationlatitude = "";
+               String destinationlongitude = "";
+
+
+
+               et_searchlocation.setText(dataList.get(position).getPsName());
+               destinationlatitude = dataList.get(position).getLat();
+               destinationlongitude = dataList.get(position).getLng();
+
+
+
+
+
+
+               String currentLatitude = HelperSharedPreferences.getSharedPreferencesString(MainActivity.this,"lat","");
+               String currentLongitude = HelperSharedPreferences.getSharedPreferencesString(MainActivity.this,"lon","");
+              // LatLng currentLocation = new LatLng(Double.parseDouble(currentLatitude), Double.parseDouble(currentLongitude));
+
+
+
+//               String destinationlatitude = dataList.get(position).getLat();
+//               String destinationlongitude = dataList.get(position).getLng();
+
+               if(!"".equals(destinationlatitude) && !"".equals(destinationlongitude)){
+
+                   LatLng destinationlocation = new LatLng(Double.parseDouble(destinationlatitude), Double.parseDouble(destinationlongitude));
+
+                   MarkerOptions markerMonas = new MarkerOptions()
+                           .position(destinationlocation)
+                           .title("Destination");
+
+                   mGoogleMap.addMarker(markerMonas);
+                   mGoogleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(destinationlocation, 11.6f));
+
+                   String fromFKIP = currentLatitude + "," + currentLongitude;
+
+                   String toMonas = destinationlatitude + "," + destinationlongitude;
+
+                   ApiServices apiServices = RetrofitClient.apiServices(MainActivity.this);
+                   apiServices.getDirection(fromFKIP, toMonas, getString(R.string.google_maps_key))
+                           .enqueue(new Callback<DirectionResponses>() {
+                               @Override
+                               public void onResponse(@NonNull Call<DirectionResponses> call, @NonNull retrofit2.Response<DirectionResponses> response) {
+
+                                   Log.d("response===>", response.toString());
+
+                                   drawPolyline(response,destinationlocation);
+
+                               }
+
+                               @Override
+                               public void onFailure(@NonNull Call<DirectionResponses> call, @NonNull Throwable t) {
+                                   Log.e("anjir error", t.getLocalizedMessage());
+                               }
+                           });
+
+
+
+               }
+
+
+
+
+             //  drawPolyline(currentLocation,destinationlocation);
+
+           }
+       });
+
+        rc_locationlist.setAdapter(searchAdapter);
+
+
+        et_searchlocation.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+
+
+
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+
+                if(s.length()>0){
+                    rc_locationlist.setVisibility(View.VISIBLE);
+                    searchAdapter.filter(s.toString());
+                }
+
+
+
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+
+
+            }
+        });
+
+
+
+        et_searchlocation.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                // Check if the event is ACTION_UP (finger released)
+                if (event.getAction() == MotionEvent.ACTION_UP) {
+                    // Clear the EditText text
+                    et_searchlocation.setText("");
+                }
+                // Return false to allow other touch events to be processed
+                return false;
+            }
+        });
+
+
+
+
+
+
         btnLogout.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -299,6 +483,82 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
             }
         });
     }
+
+
+    private void drawPolyline(@NonNull retrofit2.Response<DirectionResponses> response, LatLng destinationlocation) {
+        if (response.body() != null) {
+
+            Log.d("polyresponse==>", response.body().toString());
+
+            Polyline previousPolyline = null;
+
+
+            String shape = response.body().getRoutes().get(0).getOverviewPolyline().getPoints();
+            PolylineOptions polyline = new PolylineOptions()
+                    .addAll(PolyUtil.decode(shape))
+                    .width(8f)
+                    .color(Color.RED);
+
+            mGoogleMap.clear();
+
+            MarkerOptions markerMonas = new MarkerOptions()
+                    .position(destinationlocation)
+                    .title("Destination");
+
+            mGoogleMap.addMarker(markerMonas);
+            mGoogleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(destinationlocation, 11.6f));
+
+
+
+
+            Polyline newpolyline;
+
+
+
+            if(previousPolyline== null) {
+
+                 newpolyline = mGoogleMap.addPolyline(polyline);
+
+            }else{
+
+
+
+                previousPolyline.remove();
+
+                 newpolyline = mGoogleMap.addPolyline(polyline);
+            }
+
+            previousPolyline =  newpolyline;
+
+
+        }
+    }
+
+
+
+
+    private static class RetrofitClient {
+        static ApiServices apiServices(Context context) {
+            Retrofit retrofit = new Retrofit.Builder()
+                    .addConverterFactory(GsonConverterFactory.create())
+                    .baseUrl(context.getResources().getString(R.string.base_url))
+                    .build();
+
+            return retrofit.create(ApiServices.class);
+        }
+    }
+
+
+    private interface ApiServices {
+        @GET("maps/api/directions/json")
+        Call<DirectionResponses> getDirection(@Query("origin") String origin,
+                                              @Query("destination") String destination,
+                                              @Query("key") String apiKey);
+    }
+
+
+
+
     private void checkOfflineData(){
         if (checkNetworkStatus(MainActivity.this)) {
             if (!HelperSharedPreferences.getSharedPreferencesBoolean(MainActivity.this, "isIDSent", false)) {
@@ -1101,6 +1361,15 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
 
         //Place current location marker
         LatLng latLng = new LatLng(location.getLatitude(), location.getLongitude());
+
+        Log.d("lat",String.valueOf(location.getLatitude()));
+        Log.d("lon",String.valueOf(location.getLongitude()));
+
+        HelperSharedPreferences.putSharedPreferencesString(MainActivity.this,"lat",String.valueOf(location.getLatitude()));
+
+        HelperSharedPreferences.putSharedPreferencesString(MainActivity.this,"lon",String.valueOf(location.getLongitude()));
+
+
         MarkerOptions markerOptions = new MarkerOptions();
         markerOptions.position(latLng);
         markerOptions.title("Your Position");
@@ -1319,6 +1588,15 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
                             if (location != null) {
                                 //Place current location marker
                                 LatLng latLng = new LatLng(location.getLatitude(), location.getLongitude());
+
+                                Log.d("lat",String.valueOf(location.getLatitude()));
+                                Log.d("lon",String.valueOf(location.getLongitude()));
+
+                                HelperSharedPreferences.putSharedPreferencesString(MainActivity.this,"lat",String.valueOf(location.getLatitude()));
+
+                                HelperSharedPreferences.putSharedPreferencesString(MainActivity.this,"lon",String.valueOf(location.getLongitude()));
+
+
                                 MarkerOptions markerOptions = new MarkerOptions();
                                 markerOptions.position(latLng);
                                 markerOptions.title("Your Position");

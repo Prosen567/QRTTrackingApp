@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">QRT Tracking</string>
+    <string name="base_url">https://maps.googleapis.com</string>
 </resources>

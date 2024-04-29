@@ -49,6 +49,9 @@ dependencies {
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.1.0'
     implementation 'com.google.guava:guava:28.0-android'
     implementation 'com.google.code.gson:gson:2.8.2'
+    implementation 'com.squareup.retrofit2:retrofit:2.9.0'
+    implementation 'com.squareup.retrofit2:converter-gson:2.5.0'
+    implementation 'com.google.maps.android:android-maps-utils:0.5'
 }
 
 apply plugin: 'com.google.gms.google-services'
