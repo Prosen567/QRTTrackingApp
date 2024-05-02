@@ -517,6 +517,7 @@
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rc_locationlist"
+        android:visibility="gone"
         android:layout_below="@+id/et_search"
         android:layout_marginHorizontal="15dp"
         android:layout_width="match_parent"

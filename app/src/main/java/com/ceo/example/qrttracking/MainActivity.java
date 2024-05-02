@@ -164,6 +164,7 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
     private ArrayList<PartInfo> dataList;
     private SearchAdapter searchAdapter;
     int lastpos =-1;
+    boolean search= false;
 
     public static MainActivity getInstance() {
         return new MainActivity();
@@ -313,85 +314,86 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
 
         Log.d("dataList", dataList.toString());
 
-        searchAdapter = new SearchAdapter(MainActivity.this,dataList);
+        searchAdapter = new SearchAdapter(dataList, new SearchAdapter.OnItemClickListener(){
 
-        rc_locationlist.setLayoutManager(new LinearLayoutManager(this));
-
-       searchAdapter.setOnItemClickListener(new OnItemClickListener() {
-
-
-           @Override
-           public void onItemClick(int position) {
-
-               rc_locationlist.setVisibility(View.GONE);
-
-               String destinationlatitude = "";
-               String destinationlongitude = "";
+            @Override
+            public void onItemClick(PartInfo item) {
 
 
+                String destinationlatitude = "";
+                String destinationlongitude = "";
 
-               et_searchlocation.setText(dataList.get(position).getPsName());
-               destinationlatitude = dataList.get(position).getLat();
-               destinationlongitude = dataList.get(position).getLng();
+                et_searchlocation.setText(item.getPsName());
+                destinationlatitude = item.getLat();
+                destinationlongitude = item.getLng();
+
+                rc_locationlist.setVisibility(View.GONE);
+
+                HelperSharedPreferences.putSharedPreferencesString(MainActivity.this,"dest_lat",destinationlatitude);
+
+                HelperSharedPreferences.putSharedPreferencesString(MainActivity.this,"dest_lon",destinationlongitude);
 
 
 
 
-
-
-               String currentLatitude = HelperSharedPreferences.getSharedPreferencesString(MainActivity.this,"lat","");
-               String currentLongitude = HelperSharedPreferences.getSharedPreferencesString(MainActivity.this,"lon","");
-              // LatLng currentLocation = new LatLng(Double.parseDouble(currentLatitude), Double.parseDouble(currentLongitude));
+                String currentLatitude = HelperSharedPreferences.getSharedPreferencesString(MainActivity.this,"lat","");
+                String currentLongitude = HelperSharedPreferences.getSharedPreferencesString(MainActivity.this,"lon","");
+                // LatLng currentLocation = new LatLng(Double.parseDouble(currentLatitude), Double.parseDouble(currentLongitude));
 
 
 
 //               String destinationlatitude = dataList.get(position).getLat();
 //               String destinationlongitude = dataList.get(position).getLng();
 
-               if(!"".equals(destinationlatitude) && !"".equals(destinationlongitude)){
+                if(!"".equals(destinationlatitude) && !"".equals(destinationlongitude)){
 
-                   LatLng destinationlocation = new LatLng(Double.parseDouble(destinationlatitude), Double.parseDouble(destinationlongitude));
+                    LatLng destinationlocation = new LatLng(Double.parseDouble(destinationlatitude), Double.parseDouble(destinationlongitude));
 
-                   MarkerOptions markerMonas = new MarkerOptions()
-                           .position(destinationlocation)
-                           .title("Destination");
+                    MarkerOptions markerMonas = new MarkerOptions()
+                            .position(destinationlocation)
+                            .title("Destination");
 
-                   mGoogleMap.addMarker(markerMonas);
-                   mGoogleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(destinationlocation, 11.6f));
+                    mGoogleMap.addMarker(markerMonas);
+                    mGoogleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(destinationlocation, 11.6f));
 
-                   String fromFKIP = currentLatitude + "," + currentLongitude;
+                    String fromFKIP = currentLatitude + "," + currentLongitude;
 
-                   String toMonas = destinationlatitude + "," + destinationlongitude;
+                    String toMonas = destinationlatitude + "," + destinationlongitude;
 
-                   ApiServices apiServices = RetrofitClient.apiServices(MainActivity.this);
-                   apiServices.getDirection(fromFKIP, toMonas, getString(R.string.google_maps_key))
-                           .enqueue(new Callback<DirectionResponses>() {
-                               @Override
-                               public void onResponse(@NonNull Call<DirectionResponses> call, @NonNull retrofit2.Response<DirectionResponses> response) {
+                    ApiServices apiServices = RetrofitClient.apiServices(MainActivity.this);
 
-                                   Log.d("response===>", response.toString());
+                    apiServices.getDirection(fromFKIP, toMonas, getString(R.string.google_maps_key))
+                            .enqueue(new Callback<DirectionResponses>() {
+                                @Override
+                                public void onResponse(@NonNull Call<DirectionResponses> call, @NonNull retrofit2.Response<DirectionResponses> response) {
 
-                                   drawPolyline(response,destinationlocation);
+                                    Log.d("response===>", response.toString());
 
-                               }
+                                    drawPolyline(response,destinationlocation);
 
-                               @Override
-                               public void onFailure(@NonNull Call<DirectionResponses> call, @NonNull Throwable t) {
-                                   Log.e("anjir error", t.getLocalizedMessage());
-                               }
-                           });
+                                }
 
-
-
-               }
+                                @Override
+                                public void onFailure(@NonNull Call<DirectionResponses> call, @NonNull Throwable t) {
+                                    Log.e("anjir error", t.getLocalizedMessage());
+                                }
+                            });
 
 
 
+                }
 
-             //  drawPolyline(currentLocation,destinationlocation);
 
-           }
-       });
+
+                //  drawPolyline(currentLocation,destinationlocation);
+
+            }
+
+
+
+        });
+
+        rc_locationlist.setLayoutManager(new LinearLayoutManager(this));
 
         rc_locationlist.setAdapter(searchAdapter);
 
@@ -432,6 +434,7 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
                 if (event.getAction() == MotionEvent.ACTION_UP) {
                     // Clear the EditText text
                     et_searchlocation.setText("");
+                    rc_locationlist.setVisibility(View.GONE);
                 }
                 // Return false to allow other touch events to be processed
                 return false;
@@ -1405,7 +1408,72 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
         //move map camera
         // mGoogleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng,4));
 
+
+        if(HelperSharedPreferences.getSharedPreferencesString(MainActivity.this,"dest_lat","").length()>0 && HelperSharedPreferences.getSharedPreferencesString(MainActivity.this,"dest_lon","").length()>0){
+
+            getupdatedpolyline();
+        }
+
+
+
     }
+
+    private void getupdatedpolyline() {
+
+        Log.d("updatepoly","updatepolyline");
+
+      String destinationlatitude =   HelperSharedPreferences.getSharedPreferencesString(MainActivity.this,"dest_lat","");
+
+      String destinationlongitude =  HelperSharedPreferences.getSharedPreferencesString(MainActivity.this,"dest_lon","");
+
+
+      String currentLatitude = HelperSharedPreferences.getSharedPreferencesString(MainActivity.this,"lat","");
+      String currentLongitude = HelperSharedPreferences.getSharedPreferencesString(MainActivity.this,"lon","");
+
+        // LatLng currentLocation = new LatLng(Double.parseDouble(currentLatitude), Double.parseDouble(currentLongitude));
+
+//         String destinationlatitude = dataList.get(position).getLat();
+//         String destinationlongitude = dataList.get(position).getLng();
+
+
+        if(!"".equals(destinationlatitude) && !"".equals(destinationlongitude)){
+
+            LatLng destinationlocation = new LatLng(Double.parseDouble(destinationlatitude), Double.parseDouble(destinationlongitude));
+
+            MarkerOptions markerMonas = new MarkerOptions()
+                    .position(destinationlocation)
+                    .title("Destination");
+
+            mGoogleMap.addMarker(markerMonas);
+            mGoogleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(destinationlocation, 11.6f));
+
+            String fromFKIP = currentLatitude + "," + currentLongitude;
+
+            String toMonas = destinationlatitude + "," + destinationlongitude;
+
+            ApiServices apiServices = RetrofitClient.apiServices(MainActivity.this);
+            apiServices.getDirection(fromFKIP, toMonas, getString(R.string.google_maps_key))
+                    .enqueue(new Callback<DirectionResponses>() {
+                        @Override
+                        public void onResponse(@NonNull Call<DirectionResponses> call, @NonNull retrofit2.Response<DirectionResponses> response) {
+
+                            Log.d("response===>", response.toString());
+
+                            drawPolyline(response,destinationlocation);
+
+                        }
+
+                        @Override
+                        public void onFailure(@NonNull Call<DirectionResponses> call, @NonNull Throwable t) {
+                            Log.e("anjir error", t.getLocalizedMessage());
+                        }
+                    });
+
+
+        }
+
+    }
+
 
     @Override
     public void onMapReady(GoogleMap googleMap) {
