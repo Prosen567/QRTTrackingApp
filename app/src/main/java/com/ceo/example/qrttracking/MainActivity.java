@@ -25,6 +25,7 @@ import android.os.AsyncTask;
 import android.os.BatteryManager;
 import android.os.Build;
 import android.provider.Settings;
+
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
@@ -35,6 +36,7 @@ import com.ceo.example.qrttracking.mapdirectiondata.DirectionResponses;
 import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.android.material.snackbar.Snackbar;
+
 import androidx.core.app.ActivityCompat;
 import androidx.fragment.app.FragmentActivity;
 import androidx.core.content.ContextCompat;
@@ -163,8 +165,11 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
     RecyclerView rc_locationlist;
     private ArrayList<PartInfo> dataList;
     private SearchAdapter searchAdapter;
-    int lastpos =-1;
-    boolean search= false;
+    int lastpos = -1;
+    boolean search = false;
+    Polyline previousPolyline = null;
+    private LatLng startLocation;
+    private LatLng endLocation;
 
     public static MainActivity getInstance() {
         return new MainActivity();
@@ -208,10 +213,10 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
             tvassemblyName.setText(HelperSharedPreferences.getSharedPreferencesString(MainActivity.this, "ac_name", ""));
         }
         if (!HelperSharedPreferences.getSharedPreferencesString(MainActivity.this, "secno", "").equals("")) {
-            tvsectorId.setText(HelperSharedPreferences.getSharedPreferencesString(MainActivity.this, "secno", "")+" - "+HelperSharedPreferences.getSharedPreferencesString(MainActivity.this, "mobileno", ""));
+            tvsectorId.setText(HelperSharedPreferences.getSharedPreferencesString(MainActivity.this, "secno", "") + " - " + HelperSharedPreferences.getSharedPreferencesString(MainActivity.this, "mobileno", ""));
         }
         if (!HelperSharedPreferences.getSharedPreferencesString(MainActivity.this, "person_role", "").equals("")) {
-            tvSectorRole.setText(HelperSharedPreferences.getSharedPreferencesString(MainActivity.this, "person_role", "")+" :   ");
+            tvSectorRole.setText(HelperSharedPreferences.getSharedPreferencesString(MainActivity.this, "person_role", "") + " :   ");
         }
         if (!HelperSharedPreferences.getSharedPreferencesString(MainActivity.this, "pc_no", "").equals("")) {
             tvpcNo.setText(HelperSharedPreferences.getSharedPreferencesString(MainActivity.this, "pc_no", ""));
@@ -243,7 +248,7 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
             btnStart.setVisibility(View.GONE);
             btnStart.clearAnimation();
             btnStop.setVisibility(View.VISIBLE);
-           // btnStop.startAnimation(startAnimation());
+            // btnStop.startAnimation(startAnimation());
         } else {
             btnStop.setVisibility(View.GONE);
             btnStop.clearAnimation();
@@ -252,9 +257,14 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
         }
         // sendOfflineData();
         mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
+
+        //  polylinePoints = new ArrayList<>();
+
+
         mLocationRequest = LocationRequest.create();
         mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
         mLocationRequest.setInterval(20 * 1000);
+        mLocationRequest.setFastestInterval(5000); // 5 seconds
         if (!HelperSharedPreferences.getSharedPreferencesString(MainActivity.this, "currentlocationText", "").equalsIgnoreCase("")) {
             tvCurrentLocation.setText(HelperSharedPreferences.getSharedPreferencesString(MainActivity.this, "currentlocationText", ""));
         }
@@ -264,10 +274,18 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
                 if (locationResult == null) {
                     return;
                 }
+
+                String lat = HelperSharedPreferences.getSharedPreferencesString(MainActivity.this, "dest_lat", "");
+
+                String lon = HelperSharedPreferences.getSharedPreferencesString(MainActivity.this, "dest_lon", "");
+
                 for (Location location : locationResult.getLocations()) {
-                    if (location != null) {
-                       /* wayLatitude = location.getLatitude();
-                        wayLongitude = location.getLongitude();*/
+                    if (startLocation == null) {
+                        startLocation = new LatLng(location.getLatitude(), location.getLongitude());
+                        mGoogleMap.addMarker(new MarkerOptions().position(startLocation).title("Start"));
+                    } else {
+                        endLocation = new LatLng(Double.parseDouble(lat), Double.parseDouble(lon));
+                        draw_Polyline(startLocation, endLocation);
                     }
                 }
             }
@@ -295,7 +313,7 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
         animator.start();*/
 
 
-        String jsonString = HelperSharedPreferences.getSharedPreferencesString(MainActivity.this,"part_info","");
+        String jsonString = HelperSharedPreferences.getSharedPreferencesString(MainActivity.this, "part_info", "");
 
 
 //        JSONArray jsonArray= null;
@@ -308,13 +326,14 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
 
         Gson gson = new Gson();
 
-        Type type = new TypeToken<ArrayList<PartInfo>>(){}.getType();
+        Type type = new TypeToken<ArrayList<PartInfo>>() {
+        }.getType();
 
         dataList = gson.fromJson(jsonString, type);
 
         Log.d("dataList", dataList.toString());
 
-        searchAdapter = new SearchAdapter(dataList, new SearchAdapter.OnItemClickListener(){
+        searchAdapter = new SearchAdapter(dataList, new SearchAdapter.OnItemClickListener() {
 
             @Override
             public void onItemClick(PartInfo item) {
@@ -329,23 +348,20 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
 
                 rc_locationlist.setVisibility(View.GONE);
 
-                HelperSharedPreferences.putSharedPreferencesString(MainActivity.this,"dest_lat",destinationlatitude);
+                HelperSharedPreferences.putSharedPreferencesString(MainActivity.this, "dest_lat", destinationlatitude);
 
-                HelperSharedPreferences.putSharedPreferencesString(MainActivity.this,"dest_lon",destinationlongitude);
-
-
+                HelperSharedPreferences.putSharedPreferencesString(MainActivity.this, "dest_lon", destinationlongitude);
 
 
-                String currentLatitude = HelperSharedPreferences.getSharedPreferencesString(MainActivity.this,"lat","");
-                String currentLongitude = HelperSharedPreferences.getSharedPreferencesString(MainActivity.this,"lon","");
+                String currentLatitude = HelperSharedPreferences.getSharedPreferencesString(MainActivity.this, "lat", "");
+                String currentLongitude = HelperSharedPreferences.getSharedPreferencesString(MainActivity.this, "lon", "");
                 // LatLng currentLocation = new LatLng(Double.parseDouble(currentLatitude), Double.parseDouble(currentLongitude));
-
 
 
 //               String destinationlatitude = dataList.get(position).getLat();
 //               String destinationlongitude = dataList.get(position).getLng();
 
-                if(!"".equals(destinationlatitude) && !"".equals(destinationlongitude)){
+                if (!"".equals(destinationlatitude) && !"".equals(destinationlongitude)) {
 
                     LatLng destinationlocation = new LatLng(Double.parseDouble(destinationlatitude), Double.parseDouble(destinationlongitude));
 
@@ -369,7 +385,7 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
 
                                     Log.d("response===>", response.toString());
 
-                                    drawPolyline(response,destinationlocation);
+                                    drawPolyline(response, destinationlocation);
 
                                 }
 
@@ -380,15 +396,12 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
                             });
 
 
-
                 }
-
 
 
                 //  drawPolyline(currentLocation,destinationlocation);
 
             }
-
 
 
         });
@@ -403,17 +416,15 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {
 
 
-
             }
 
             @Override
             public void onTextChanged(CharSequence s, int start, int before, int count) {
 
-                if(s.length()>0){
+                if (s.length() > 0) {
                     rc_locationlist.setVisibility(View.VISIBLE);
                     searchAdapter.filter(s.toString());
                 }
-
 
 
             }
@@ -424,7 +435,6 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
 
             }
         });
-
 
 
         et_searchlocation.setOnTouchListener(new View.OnTouchListener() {
@@ -440,10 +450,6 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
                 return false;
             }
         });
-
-
-
-
 
 
         btnLogout.setOnClickListener(new View.OnClickListener() {
@@ -462,17 +468,18 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
                     } else {
                         Toast.makeText(MainActivity.this, "The location is syncing", Toast.LENGTH_SHORT).show();
                     }
-                }else {
+                } else {
                     Toast.makeText(MainActivity.this, "No Network connection available", Toast.LENGTH_LONG).show();
                 }
                 /*if (__listener != null)
                     __listener.onCompleted(true);*/
             }
         });
+
         setOnMainActivityLocationListener(new OnMainActivityLocationListener() {
             @Override
             public void onCompleted(boolean status, String id) {
-                if (status){
+                if (status) {
                     HelperSharedPreferences.putSharedPreferencesInt(MainActivity.this, "fetchlocationIndex", (HelperSharedPreferences.getSharedPreferencesInt(MainActivity.this, "fetchlocationIndex", 0)) + 1);
                     HelperSharedPreferences.putSharedPreferencesBoolean(MainActivity.this, "isIDSent", false);
                     checkOfflineData();
@@ -487,16 +494,32 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
         });
     }
 
+    private void draw_Polyline(LatLng startLocation, LatLng endLocation) {
+
+
+        if (previousPolyline != null) {
+            previousPolyline.remove();
+        }
+
+        PolylineOptions polylineOptions = new PolylineOptions()
+                .add(startLocation)
+                .add(endLocation)
+                .width(5)
+                .color(Color.RED);
+
+        previousPolyline = mGoogleMap.addPolyline(polylineOptions);
+
+
+    }
+
 
     private void drawPolyline(@NonNull retrofit2.Response<DirectionResponses> response, LatLng destinationlocation) {
         if (response.body() != null) {
 
             Log.d("polyresponse==>", response.body().toString());
 
-            Polyline previousPolyline = null;
 
-
-            if(response.body().getRoutes().get(0)!= null){
+            if (response.body().getRoutes().get(0) != null) {
 
                 String shape = response.body().getRoutes().get(0).getOverviewPolyline().getPoints();
                 PolylineOptions polyline = new PolylineOptions()
@@ -514,18 +537,14 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
                 mGoogleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(destinationlocation, 11.6f));
 
 
-
-
                 Polyline newpolyline;
 
 
-
-                if(previousPolyline== null) {
+                if (previousPolyline == null) {
 
                     newpolyline = mGoogleMap.addPolyline(polyline);
 
-                }else{
-
+                } else {
 
 
                     previousPolyline.remove();
@@ -533,25 +552,19 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
                     newpolyline = mGoogleMap.addPolyline(polyline);
                 }
 
-                previousPolyline =  newpolyline;
+                previousPolyline = newpolyline;
 
 
+            } else {
 
-            }else{
 
-
-                Toast.makeText(MainActivity.this,"No route found",Toast.LENGTH_LONG).show();
+                Toast.makeText(MainActivity.this, "No route found", Toast.LENGTH_LONG).show();
 
             }
 
 
-
-
-
         }
     }
-
-
 
 
     private static class RetrofitClient {
@@ -574,9 +587,7 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
     }
 
 
-
-
-    private void checkOfflineData(){
+    private void checkOfflineData() {
         if (checkNetworkStatus(MainActivity.this)) {
             if (!HelperSharedPreferences.getSharedPreferencesBoolean(MainActivity.this, "isIDSent", false)) {
                 Hashtable<String, String> hashtableList = new LocationDetails(MainActivity.this).getSpecificData(MainActivity.this, "0", HelperSharedPreferences.getSharedPreferencesInt(MainActivity.this, "fetchlocationIndex", 0));
@@ -612,7 +623,7 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
                             System.out.println("LocationService.Tablesize: " + HelperSharedPreferences.getSharedPreferencesString(MainActivity.this, "tablesize", "0") + "  " + HelperSharedPreferences.getSharedPreferencesInt(MainActivity.this, "fetchlocationIndex", 0));
                             networkCountOffline(lat, lon, id, upload_date, secmobile, sos_update);
                             //SendLocationtoServer(dist, ac, secno, secmobile, imei, lat, lon, upload_date, flag, session, id);
-                        }else {
+                        } else {
                             System.out.println("LocationService.fetchlocationIndex  11");
                             HelperSharedPreferences.putSharedPreferencesInt(MainActivity.this, "fetchlocationIndex", 0);
                             /*if (HelperSharedPreferences.getSharedPreferencesInt(MainActivity.this, "fetchlocationIndex", 0) > Integer.parseInt(HelperSharedPreferences.getSharedPreferencesString(MainActivity.this, "tablesize", "0"))) {
@@ -647,6 +658,7 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
         pageNumber = page;
         setTitle(String.format("%s %s / %s", pdfFileName, page + 1, pageCount));
     }
+
     public void printBookmarksTree(List<PdfDocument.Bookmark> tree, String sep) {
         for (PdfDocument.Bookmark b : tree) {
 
@@ -657,6 +669,7 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
             }
         }
     }
+
     public interface OnMainActivityLocationListener {
         public abstract void onCompleted(boolean status, String id);
     }
@@ -682,7 +695,7 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
             jsonObject.put("lat", lat);
             jsonObject.put("lng", lon);
             jsonObject.put("datetime", uploadDate);
-            jsonObject.put("battarystatus", getBatteryLevel()+" :H");
+            jsonObject.put("battarystatus", getBatteryLevel() + " :H");
             jsonObject.put("version", version);
             jsonObject.put("mobileserial", HelperSharedPreferences.getSharedPreferencesString(this, "mobileno", ""));
             jsonObject.put("sos", sos_update);
@@ -816,6 +829,7 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
             mFusedLocationClient.removeLocationUpdates(locationCallback);
             LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient, this);
         }
+     //   stopLocationUpdates();
         super.onPause();
     }
 
@@ -894,7 +908,7 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
         HelperSharedPreferences.removeSharedPreferencesBoolean(this, "fetchlocationIndex");
         HelperSharedPreferences.removeSharedPreferencesBoolean(this, "isUserVerified");
         stopService(new Intent(this, LocationService.class));
-       // startActivity(new Intent(this, UserLogin.class));
+        // startActivity(new Intent(this, UserLogin.class));
         finish();
 
     }
@@ -1088,9 +1102,9 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
                 // when permissions are denied. Otherwise, your app could appear unresponsive to
                 // touches or interactions which have required permissions.
                 Snackbar.make(
-                        findViewById(R.id.rlMaincontainer),
-                        "Location Permission Denied:\nAllow permission from settings",
-                        Snackbar.LENGTH_INDEFINITE)
+                                findViewById(R.id.rlMaincontainer),
+                                "Location Permission Denied:\nAllow permission from settings",
+                                Snackbar.LENGTH_INDEFINITE)
                         .setAction("Settings", new View.OnClickListener() {
                             @Override
                             public void onClick(View view) {
@@ -1231,9 +1245,9 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
                     public void onClick(DialogInterface dialog, int which) {
                         HelperSharedPreferences.putSharedPreferencesString(MainActivity.this, "isSOSUpdate", "1");
                         if (getLastBestLocation() != null) {
-                            if (checkNetworkStatus(MainActivity.this)){
+                            if (checkNetworkStatus(MainActivity.this)) {
                                 SOSCall(String.valueOf(getLastBestLocation().getLatitude()), String.valueOf(getLastBestLocation().getLongitude()), currentDateTime(), HelperSharedPreferences.getSharedPreferencesString(MainActivity.this, "mobileno", ""), HelperSharedPreferences.getSharedPreferencesString(MainActivity.this, "isSOSUpdate", "0"));
-                            }else {
+                            } else {
                                 new LocationDetails(MainActivity.this).insertDataDistMast(HelperSharedPreferences.getSharedPreferencesString(MainActivity.this, "distno", ""), HelperSharedPreferences.getSharedPreferencesString(MainActivity.this, "acno", ""), HelperSharedPreferences.getSharedPreferencesString(MainActivity.this, "secno", ""), HelperSharedPreferences.getSharedPreferencesString(MainActivity.this, "mobileno", ""), HelperSharedPreferences.getSharedPreferencesString(MainActivity.this, "IMEI", ""), String.valueOf(getLastBestLocation().getLatitude()), String.valueOf(getLastBestLocation().getLongitude()), "", "s", String.valueOf(HelperSharedPreferences.getSharedPreferencesInt(MainActivity.this, "sessioncount", 0)), "0", HelperSharedPreferences.getSharedPreferencesString(MainActivity.this, "isSOSUpdate", "0"));
                             }
                             btnStart.setVisibility(View.GONE);
@@ -1256,9 +1270,9 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
             case R.id.btnStop:
                 HelperSharedPreferences.putSharedPreferencesString(this, "isSOSUpdate", "0");
                 if (getLastBestLocation() != null) {
-                    if (checkNetworkStatus(MainActivity.this)){
+                    if (checkNetworkStatus(MainActivity.this)) {
                         SOSCall(String.valueOf(getLastBestLocation().getLatitude()), String.valueOf(getLastBestLocation().getLongitude()), currentDateTime(), HelperSharedPreferences.getSharedPreferencesString(MainActivity.this, "mobileno", ""), HelperSharedPreferences.getSharedPreferencesString(MainActivity.this, "isSOSUpdate", "0"));
-                    }else {
+                    } else {
                         new LocationDetails(this).insertDataDistMast(HelperSharedPreferences.getSharedPreferencesString(this, "distno", ""), HelperSharedPreferences.getSharedPreferencesString(this, "acno", ""), HelperSharedPreferences.getSharedPreferencesString(this, "secno", ""), HelperSharedPreferences.getSharedPreferencesString(this, "mobileno", ""), HelperSharedPreferences.getSharedPreferencesString(this, "IMEI", ""), String.valueOf(getLastBestLocation().getLatitude()), String.valueOf(getLastBestLocation().getLongitude()), "", "s", String.valueOf(HelperSharedPreferences.getSharedPreferencesInt(this, "sessioncount", 0)), "0", HelperSharedPreferences.getSharedPreferencesString(MainActivity.this, "isSOSUpdate", "0"));
                     }
                     System.out.println("MainActivity.onCompleted SOS:  ");
@@ -1273,8 +1287,9 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
                 break;
         }
     }
-    private String currentDateTime(){
-        DateFormat dateFormatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss",Locale.ENGLISH);
+
+    private String currentDateTime() {
+        DateFormat dateFormatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.ENGLISH);
         dateFormatter.setLenient(false);
         Date today = new Date();
         return dateFormatter.format(today);
@@ -1358,6 +1373,7 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
                 DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
 
     }
+
     private float getBatteryLevel() {
         Intent batteryStatus = registerReceiver(null,
                 new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
@@ -1369,6 +1385,7 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
         }
         return batteryLevel / (float) batteryScale * 100;
     }
+
     @Override
     public void onLocationChanged(Location location) {
         mLastLocation = location;
@@ -1379,12 +1396,12 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
         //Place current location marker
         LatLng latLng = new LatLng(location.getLatitude(), location.getLongitude());
 
-        Log.d("lat===>",String.valueOf(location.getLatitude()));
-        Log.d("lon===>",String.valueOf(location.getLongitude()));
+        Log.d("lat===>", String.valueOf(location.getLatitude()));
+        Log.d("lon===>", String.valueOf(location.getLongitude()));
 
-        HelperSharedPreferences.putSharedPreferencesString(MainActivity.this,"lat",String.valueOf(location.getLatitude()));
+        HelperSharedPreferences.putSharedPreferencesString(MainActivity.this, "lat", String.valueOf(location.getLatitude()));
 
-        HelperSharedPreferences.putSharedPreferencesString(MainActivity.this,"lon",String.valueOf(location.getLongitude()));
+        HelperSharedPreferences.putSharedPreferencesString(MainActivity.this, "lon", String.valueOf(location.getLongitude()));
 
 
         MarkerOptions markerOptions = new MarkerOptions();
@@ -1397,9 +1414,9 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
         mGoogleMap.animateCamera(cameraPosition);
         Hashtable<String, String> hashtableList = new LocationDetails(MainActivity.this).getSpecificData(MainActivity.this, "0", HelperSharedPreferences.getSharedPreferencesInt(MainActivity.this, "fetchlocationIndex", 0));
 
-        if (HelperSharedPreferences.getSharedPreferencesBoolean(MainActivity.this, "isIDSent", false)){
+        if (HelperSharedPreferences.getSharedPreferencesBoolean(MainActivity.this, "isIDSent", false)) {
             btnSync.setVisibility(View.VISIBLE);
-        }else {
+        } else {
             btnSync.setVisibility(View.GONE);
         }
         if (hashtableList != null) {
@@ -1407,14 +1424,14 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
                 System.out.println("LocationService.Tablesize11  " + HelperSharedPreferences.getSharedPreferencesString(MainActivity.this, "tablesize", "0"));
                 if (HelperSharedPreferences.getSharedPreferencesInt(MainActivity.this, "fetchlocationIndex", 0) < Integer.parseInt(HelperSharedPreferences.getSharedPreferencesString(MainActivity.this, "tablesize", "0"))) {
                     btnSync.setVisibility(View.VISIBLE);
-                }else {
+                } else {
                     btnSync.setVisibility(View.GONE);
                 }
             } else {
                 hashtableList = new LocationDetails(MainActivity.this).getSpecificData(MainActivity.this, "0", HelperSharedPreferences.getSharedPreferencesInt(MainActivity.this, "fetchlocationIndex", 0));
                 btnSync.setVisibility(View.GONE);
             }
-        }else {
+        } else {
             btnSync.setVisibility(View.GONE);
         }
         //mCurrLocationMarker = mGoogleMap.addMarker(markerOptions);
@@ -1423,26 +1440,25 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
         // mGoogleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng,4));
 
 
-        if(HelperSharedPreferences.getSharedPreferencesString(MainActivity.this,"dest_lat","").length()>0 && HelperSharedPreferences.getSharedPreferencesString(MainActivity.this,"dest_lon","").length()>0){
+        if (HelperSharedPreferences.getSharedPreferencesString(MainActivity.this, "dest_lat", "").length() > 0 && HelperSharedPreferences.getSharedPreferencesString(MainActivity.this, "dest_lon", "").length() > 0) {
 
             getupdatedpolyline();
         }
-
 
 
     }
 
     private void getupdatedpolyline() {
 
-        Log.d("updatepoly","updatepolyline");
+        Log.d("updatepoly", "updatepolyline");
 
-      String destinationlatitude =   HelperSharedPreferences.getSharedPreferencesString(MainActivity.this,"dest_lat","");
+        String destinationlatitude = HelperSharedPreferences.getSharedPreferencesString(MainActivity.this, "dest_lat", "");
 
-      String destinationlongitude =  HelperSharedPreferences.getSharedPreferencesString(MainActivity.this,"dest_lon","");
+        String destinationlongitude = HelperSharedPreferences.getSharedPreferencesString(MainActivity.this, "dest_lon", "");
 
 
-      String currentLatitude = HelperSharedPreferences.getSharedPreferencesString(MainActivity.this,"lat","");
-      String currentLongitude = HelperSharedPreferences.getSharedPreferencesString(MainActivity.this,"lon","");
+        String currentLatitude = HelperSharedPreferences.getSharedPreferencesString(MainActivity.this, "lat", "");
+        String currentLongitude = HelperSharedPreferences.getSharedPreferencesString(MainActivity.this, "lon", "");
 
         // LatLng currentLocation = new LatLng(Double.parseDouble(currentLatitude), Double.parseDouble(currentLongitude));
 
@@ -1450,7 +1466,7 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
 //         String destinationlongitude = dataList.get(position).getLng();
 
 
-        if(!"".equals(destinationlatitude) && !"".equals(destinationlongitude)){
+        if (!"".equals(destinationlatitude) && !"".equals(destinationlongitude)) {
 
             LatLng destinationlocation = new LatLng(Double.parseDouble(destinationlatitude), Double.parseDouble(destinationlongitude));
 
@@ -1473,7 +1489,7 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
 
                             Log.d("response===>", response.toString());
 
-                            drawPolyline(response,destinationlocation);
+                            drawPolyline(response, destinationlocation);
 
                         }
 
@@ -1524,6 +1540,35 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
             buildGoogleApiClient();
             mGoogleMap.setMyLocationEnabled(true);
         }
+
+        startLocationUpdates();
+    }
+
+    private void startLocationUpdates() {
+
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            // TODO: Consider calling
+            //    ActivityCompat#requestPermissions
+            // here to request the missing permissions, and then overriding
+            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+            //                                          int[] grantResults)
+            // to handle the case where the user grants the permission. See the documentation
+            // for ActivityCompat#requestPermissions for more details.
+            return;
+        }
+        mFusedLocationClient.requestLocationUpdates(createLocationRequest(), locationCallback, null);
+    }
+
+    private static LocationRequest createLocationRequest() {
+        LocationRequest locationRequest = new LocationRequest();
+        locationRequest.setInterval(10000); // 10 seconds
+        locationRequest.setFastestInterval(5000); // 5 seconds
+        locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+        return locationRequest;
+    }
+
+    private void stopLocationUpdates() {
+        mFusedLocationClient.removeLocationUpdates(locationCallback);
     }
 
     private static class SendLocationAsyncParams {
