@@ -496,42 +496,56 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
             Polyline previousPolyline = null;
 
 
-            String shape = response.body().getRoutes().get(0).getOverviewPolyline().getPoints();
-            PolylineOptions polyline = new PolylineOptions()
-                    .addAll(PolyUtil.decode(shape))
-                    .width(8f)
-                    .color(Color.RED);
+            if(response.body().getRoutes().get(0)!= null){
 
-            mGoogleMap.clear();
+                String shape = response.body().getRoutes().get(0).getOverviewPolyline().getPoints();
+                PolylineOptions polyline = new PolylineOptions()
+                        .addAll(PolyUtil.decode(shape))
+                        .width(8f)
+                        .color(Color.RED);
 
-            MarkerOptions markerMonas = new MarkerOptions()
-                    .position(destinationlocation)
-                    .title("Destination");
+                mGoogleMap.clear();
 
-            mGoogleMap.addMarker(markerMonas);
-            mGoogleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(destinationlocation, 11.6f));
+                MarkerOptions markerMonas = new MarkerOptions()
+                        .position(destinationlocation)
+                        .title("Destination");
 
-
-
-
-            Polyline newpolyline;
+                mGoogleMap.addMarker(markerMonas);
+                mGoogleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(destinationlocation, 11.6f));
 
 
 
-            if(previousPolyline== null) {
 
-                 newpolyline = mGoogleMap.addPolyline(polyline);
+                Polyline newpolyline;
+
+
+
+                if(previousPolyline== null) {
+
+                    newpolyline = mGoogleMap.addPolyline(polyline);
+
+                }else{
+
+
+
+                    previousPolyline.remove();
+
+                    newpolyline = mGoogleMap.addPolyline(polyline);
+                }
+
+                previousPolyline =  newpolyline;
+
+
 
             }else{
 
 
+                Toast.makeText(MainActivity.this,"No route found",Toast.LENGTH_LONG).show();
 
-                previousPolyline.remove();
-
-                 newpolyline = mGoogleMap.addPolyline(polyline);
             }
 
-            previousPolyline =  newpolyline;
+
+
 
 
         }
@@ -1365,8 +1379,8 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
         //Place current location marker
         LatLng latLng = new LatLng(location.getLatitude(), location.getLongitude());
 
-        Log.d("lat",String.valueOf(location.getLatitude()));
-        Log.d("lon",String.valueOf(location.getLongitude()));
+        Log.d("lat===>",String.valueOf(location.getLatitude()));
+        Log.d("lon===>",String.valueOf(location.getLongitude()));
 
         HelperSharedPreferences.putSharedPreferencesString(MainActivity.this,"lat",String.valueOf(location.getLatitude()));
 
