@@ -143,8 +143,8 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
     private LocationRequest mLocationRequest;
     private Location mLastLocation;
     private Marker mCurrLocationMarker;
-    private static final long UPDATE_INTERVAL = 2000;
-    private static final long FASTEST_UPDATE_INTERVAL = 1000;
+    private static final long UPDATE_INTERVAL = 20000;
+    private static final long FASTEST_UPDATE_INTERVAL = 10000;
     private GoogleApiClient mGoogleApiClient;
     private static final int REQUEST_PERMISSIONS_REQUEST_CODE = 34;
     private FusedLocationProviderClient mFusedLocationClient;
@@ -170,6 +170,8 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
     Polyline previousPolyline = null;
     private LatLng startLocation;
     private LatLng endLocation;
+    private LatLng current_Location;
+    private Location previousLocation;
 
     public static MainActivity getInstance() {
         return new MainActivity();
@@ -264,7 +266,7 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
         mLocationRequest = LocationRequest.create();
         mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
         mLocationRequest.setInterval(20 * 1000);
-        mLocationRequest.setFastestInterval(5000); // 5 seconds
+      //  mLocationRequest.setFastestInterval(5000); // 5 seconds
         if (!HelperSharedPreferences.getSharedPreferencesString(MainActivity.this, "currentlocationText", "").equalsIgnoreCase("")) {
             tvCurrentLocation.setText(HelperSharedPreferences.getSharedPreferencesString(MainActivity.this, "currentlocationText", ""));
         }
@@ -275,19 +277,72 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
                     return;
                 }
 
-                String lat = HelperSharedPreferences.getSharedPreferencesString(MainActivity.this, "dest_lat", "");
+            //    String lat = HelperSharedPreferences.getSharedPreferencesString(MainActivity.this, "dest_lat", "");
 
-                String lon = HelperSharedPreferences.getSharedPreferencesString(MainActivity.this, "dest_lon", "");
+              ///  String lon = HelperSharedPreferences.getSharedPreferencesString(MainActivity.this, "dest_lon", "");
+
+                float distance= 0;
 
                 for (Location location : locationResult.getLocations()) {
-                    if (startLocation == null) {
-                        startLocation = new LatLng(location.getLatitude(), location.getLongitude());
-                        mGoogleMap.addMarker(new MarkerOptions().position(startLocation).title("Start"));
-                    } else {
-                        endLocation = new LatLng(Double.parseDouble(lat), Double.parseDouble(lon));
-                        draw_Polyline(startLocation, endLocation);
+
+                    HelperSharedPreferences.putSharedPreferencesString(MainActivity.this, "lat", String.valueOf(location.getLatitude()));
+                    HelperSharedPreferences.putSharedPreferencesString(MainActivity.this, "lon", String.valueOf(location.getLongitude()));
+
+                    current_Location = new LatLng(location.getLatitude(), location.getLongitude());
+
+
+                    if ( mGoogleMap!= null) {
+
+                        mGoogleMap.animateCamera(CameraUpdateFactory.newLatLngZoom(current_Location, 15));
+
+
                     }
+
+
+
+                    if (previousLocation != null) {
+                        distance = location.distanceTo(previousLocation);
+                        // Compare distance, or do other comparison with previous locatio
+
+                        if (distance > 50) {
+
+                            if (HelperSharedPreferences.getSharedPreferencesString(MainActivity.this, "dest_lat", "").length() > 0 && HelperSharedPreferences.getSharedPreferencesString(MainActivity.this, "dest_lon", "").length() > 0) {
+
+                                getupdatedpolyline();
+
+                            }
+
+
+                        }else{
+
+                            Toast.makeText(MainActivity.this, "Distance from previous location: " + distance + " meters", Toast.LENGTH_SHORT).show();
+                        }
+
+                    }
+                    previousLocation = location;
+
+
+
+
+
+//                    if (startLocation == null) {
+//
+//                      //  startLocation = new LatLng(location.getLatitude(), location.getLongitude());
+//
+//                         HelperSharedPreferences.putSharedPreferencesString(MainActivity.this, "lat", String.valueOf(location.getLatitude()));
+//                         HelperSharedPreferences.putSharedPreferencesString(MainActivity.this, "lon", String.valueOf(location.getLongitude()));
+//
+//                      //  mGoogleMap.addMarker(new MarkerOptions().position(startLocation).title("Start"));
+//                    } else {
+//                        endLocation = new LatLng(Double.parseDouble(lat), Double.parseDouble(lon));
+//                      //  draw_Polyline(startLocation, endLocation);
+//                    }
                 }
+
+
+
+
+
             }
         };
         /*final ValueAnimator animator = ValueAnimator.ofFloat(1.0f, 0.2f);
@@ -347,6 +402,8 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
                 destinationlongitude = item.getLng();
 
                 rc_locationlist.setVisibility(View.GONE);
+
+              //  getpolylineResponse();
 
                 HelperSharedPreferences.putSharedPreferencesString(MainActivity.this, "dest_lat", destinationlatitude);
 
@@ -494,6 +551,10 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
         });
     }
 
+    private void getpolylineResponse() {
+
+    }
+
     private void draw_Polyline(LatLng startLocation, LatLng endLocation) {
 
 
@@ -519,7 +580,7 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
             Log.d("polyresponse==>", response.body().toString());
 
 
-            if (response.body().getRoutes().get(0) != null) {
+            if (response.body().getRoutes()!= null) {
 
                 String shape = response.body().getRoutes().get(0).getOverviewPolyline().getPoints();
                 PolylineOptions polyline = new PolylineOptions()
@@ -1440,10 +1501,7 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
         // mGoogleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng,4));
 
 
-        if (HelperSharedPreferences.getSharedPreferencesString(MainActivity.this, "dest_lat", "").length() > 0 && HelperSharedPreferences.getSharedPreferencesString(MainActivity.this, "dest_lon", "").length() > 0) {
 
-            getupdatedpolyline();
-        }
 
 
     }
@@ -1532,6 +1590,7 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
                 buildGoogleApiClient();
                 mGoogleMap.setMyLocationEnabled(true);
 
+
             } else {
                 //Request Location Permission
                 requestPermissions();
@@ -1561,8 +1620,8 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
 
     private static LocationRequest createLocationRequest() {
         LocationRequest locationRequest = new LocationRequest();
-        locationRequest.setInterval(10000); // 10 seconds
-        locationRequest.setFastestInterval(5000); // 5 seconds
+        locationRequest.setInterval(20000); // 10 seconds
+       // locationRequest.setFastestInterval(5000); // 5 seconds
         locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
         return locationRequest;
     }
