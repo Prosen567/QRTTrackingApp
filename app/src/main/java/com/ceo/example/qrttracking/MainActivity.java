@@ -299,16 +299,28 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
                     }
 
 
+                    if(previousLocation==null){
 
-                    if (previousLocation != null) {
+                        previousLocation = location;
+
+                        return;
+
+                    }else {
+
                         distance = location.distanceTo(previousLocation);
                         // Compare distance, or do other comparison with previous locatio
 
                         if (distance > 50) {
 
+
+
                             if (HelperSharedPreferences.getSharedPreferencesString(MainActivity.this, "dest_lat", "").length() > 0 && HelperSharedPreferences.getSharedPreferencesString(MainActivity.this, "dest_lon", "").length() > 0) {
 
+                                Toast.makeText(MainActivity.this, "Location Captured", Toast.LENGTH_SHORT).show();
+
                                 getupdatedpolyline();
+
+                                previousLocation = location;
 
                             }
 
@@ -319,7 +331,7 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
                         }
 
                     }
-                    previousLocation = location;
+
 
 
 
@@ -1620,9 +1632,9 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
 
     private static LocationRequest createLocationRequest() {
         LocationRequest locationRequest = new LocationRequest();
-        locationRequest.setInterval(20000); // 10 seconds
        // locationRequest.setFastestInterval(5000); // 5 seconds
         locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+        locationRequest.setInterval(30000); // 10 seconds
         return locationRequest;
     }
 
