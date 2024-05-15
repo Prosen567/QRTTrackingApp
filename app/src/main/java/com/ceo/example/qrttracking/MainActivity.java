@@ -393,8 +393,7 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
 
         Gson gson = new Gson();
 
-        Type type = new TypeToken<ArrayList<PartInfo>>() {
-        }.getType();
+        Type type = new TypeToken<ArrayList<PartInfo>>() {}.getType();
 
         dataList = gson.fromJson(jsonString, type);
 
@@ -592,7 +591,7 @@ public class MainActivity extends FragmentActivity implements View.OnClickListen
             Log.d("polyresponse==>", response.body().toString());
 
 
-            if (response.body().getRoutes()!= null) {
+            if (!response.body().getRoutes().isEmpty()) {
 
                 String shape = response.body().getRoutes().get(0).getOverviewPolyline().getPoints();
                 PolylineOptions polyline = new PolylineOptions()

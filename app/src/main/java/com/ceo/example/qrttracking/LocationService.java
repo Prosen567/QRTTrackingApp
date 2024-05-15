@@ -14,6 +14,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
+import android.content.pm.ServiceInfo;
 import android.graphics.BitmapFactory;
 import android.location.Criteria;
 import android.location.Location;
@@ -144,7 +145,14 @@ public class LocationService extends Service implements GoogleApiClient.Connecti
                     .setContentTitle("")
                     .setContentText("").build();
 
-            startForeground(6, notification);
+
+            if (Build.VERSION.SDK_INT >= 34) {
+                startForeground(6, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION);
+            }else {
+                startForeground(6, notification);
+            }
+
+          //  startForeground(6, notification);
         }
         buildNotification();
         batteryNotification();
@@ -559,11 +567,22 @@ public class LocationService extends Service implements GoogleApiClient.Connecti
 
     public static void startAlarmBroadcastReceiver(Context context, long delay) {
         Intent _intent = new Intent("RestartService");
-        PendingIntent pendingIntent = PendingIntent.getBroadcast(context, 0, _intent, PendingIntent.FLAG_UPDATE_CURRENT);
+       // PendingIntent pendingIntent = PendingIntent.getBroadcast(context, 0, _intent, PendingIntent.FLAG_UPDATE_CURRENT);
+        PendingIntent resultPendingIntent = null;
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            resultPendingIntent = PendingIntent.getActivity(context, 0,  _intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+
+        }else {
+            resultPendingIntent = PendingIntent.getActivity(context, 0, _intent, PendingIntent.FLAG_UPDATE_CURRENT);
+
+        }
+
+
         AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         // Remove any previous pending intent.
-        alarmManager.cancel(pendingIntent);
-        alarmManager.set(AlarmManager.RTC_WAKEUP, System.currentTimeMillis() + delay, pendingIntent);
+        alarmManager.cancel(resultPendingIntent);
+        alarmManager.set(AlarmManager.RTC_WAKEUP, System.currentTimeMillis() + delay, resultPendingIntent);
     }
 
     private void buildAppForegroundNotification() {
@@ -828,8 +847,20 @@ public class LocationService extends Service implements GoogleApiClient.Connecti
     private void batteryNotification() {
         System.out.println("LocationService.batteryNotification");
         batteryNotificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
-        PendingIntent resultPendingIntent = PendingIntent.getActivity(this, 0,
-                new Intent(this, MainActivity.class), PendingIntent.FLAG_UPDATE_CURRENT);
+//        PendingIntent resultPendingIntent = PendingIntent.getActivity(this, 0,
+//                new Intent(this, MainActivity.class), PendingIntent.FLAG_UPDATE_CURRENT);
+
+        PendingIntent resultPendingIntent= null;
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            resultPendingIntent = PendingIntent.getActivity(this, 0, new Intent(this, MainActivity.class), PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+
+        }else {
+            resultPendingIntent = PendingIntent.getActivity(this, 0, new Intent(this, MainActivity.class), PendingIntent.FLAG_UPDATE_CURRENT);
+
+        }
+
+
         batteryNotificationBuilder = new NotificationCompat.Builder(this, "default")
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                 .setSmallIcon(R.drawable.group)
@@ -846,7 +877,14 @@ public class LocationService extends Service implements GoogleApiClient.Connecti
             if (batteryNotificationManager != null) {
                 batteryNotificationManager.createNotificationChannel(channel);
             }
-            startForeground(2, batteryNotificationBuilder.build());
+           // startForeground(2, batteryNotificationBuilder.build());
+
+            if (Build.VERSION.SDK_INT >= 34) {
+                startForeground(2, batteryNotificationBuilder.build(), ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION);
+            }else {
+                startForeground(2, batteryNotificationBuilder.build());
+            }
+
         }
         //batteryNotificationManager.notify(2, batteryNotificationBuilder.build());
     }
@@ -1438,8 +1476,22 @@ public class LocationService extends Service implements GoogleApiClient.Connecti
         System.out.println("LocationService.buildNotification");
 
         mNotificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
-        PendingIntent resultPendingIntent = PendingIntent.getActivity(this, 0,
-                new Intent(this, MainActivity.class), PendingIntent.FLAG_UPDATE_CURRENT);
+//        PendingIntent resultPendingIntent = PendingIntent.getActivity(this, 0,
+//                new Intent(this, MainActivity.class), PendingIntent.FLAG_UPDATE_CURRENT);
+
+        PendingIntent resultPendingIntent = null;
+//        PendingIntent resultPendingIntent = PendingIntent.getActivity(this, 0,
+//                new Intent(this, MainActivity.class), PendingIntent.FLAG_UPDATE_CURRENT);
+
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            resultPendingIntent = PendingIntent.getActivity(this, 0, new Intent(this, MainActivity.class), PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+
+        }else {
+            resultPendingIntent = PendingIntent.getActivity(this, 0, new Intent(this, MainActivity.class), PendingIntent.FLAG_UPDATE_CURRENT);
+
+        }
+
 
         mNotificationBuilder = new NotificationCompat.Builder(this, "default")
                 .setSmallIcon(R.drawable.group)

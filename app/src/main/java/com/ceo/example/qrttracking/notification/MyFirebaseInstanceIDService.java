@@ -5,6 +5,7 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Intent;
+import android.content.pm.ServiceInfo;
 import android.graphics.BitmapFactory;
 import android.os.Build;
 import androidx.core.app.NotificationCompat;
@@ -56,8 +57,20 @@ public class MyFirebaseInstanceIDService extends FirebaseMessagingService {
 
         System.out.println("MyFirebaseInstanceIDService.buildNotification");
         mNotificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
-        PendingIntent resultPendingIntent = PendingIntent.getActivity(this, 0,
-                new Intent(this, MainActivity.class), PendingIntent.FLAG_UPDATE_CURRENT);
+//        PendingIntent resultPendingIntent = PendingIntent.getActivity(this, 0,
+//                new Intent(this, MainActivity.class), PendingIntent.FLAG_UPDATE_CURRENT);
+
+        PendingIntent resultPendingIntent = null;
+//        PendingIntent resultPendingIntent = PendingIntent.getActivity(this, 0,
+//                new Intent(this, MainActivity.class), PendingIntent.FLAG_UPDATE_CURRENT);
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            resultPendingIntent = PendingIntent.getActivity(this, 0, new Intent(this, MainActivity.class), PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+
+        }else {
+            resultPendingIntent = PendingIntent.getActivity(this, 0, new Intent(this, MainActivity.class), PendingIntent.FLAG_UPDATE_CURRENT);
+
+        }
 
         mNotificationBuilder = new NotificationCompat.Builder(this, "default1")
                 .setSmallIcon(R.drawable.group)
@@ -82,7 +95,13 @@ public class MyFirebaseInstanceIDService extends FirebaseMessagingService {
             if (mNotificationManager != null) {
                 mNotificationManager.createNotificationChannel(channel);
             }
-            startForeground(5, mNotificationBuilder.build());
+           // startForeground(5, mNotificationBuilder.build());
+
+            if (Build.VERSION.SDK_INT >= 34) {
+                startForeground(5, mNotificationBuilder.build(), ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION);
+            }else {
+                startForeground(5, mNotificationBuilder.build());
+            }
         }
 
         mNotificationManager.notify(5, notification);
